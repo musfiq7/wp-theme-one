@@ -1,5 +1,7 @@
 <?php
 
+
+
 function all_resources(){
  wp_enqueue_style('default_css', get_stylesheet_uri(), null, time(), 'all');
  wp_enqueue_style('main_css', get_template_directory_uri().'/css/main.css', null, time(), 'all');
@@ -101,3 +103,164 @@ function send_form_data(){
 
 
 add_action('wp_head', 'send_form_data');
+
+
+//***************************************************//
+//Custom post type - portfolio
+//****************************************************//
+function portfolio_custom_post_type(){
+    $labels = array(
+      'name' => 'Portfolio',
+      'singular_name' => 'portfolio',
+      'add_new' => 'Add Portfolio Item',
+      'all_items' => 'Portfolio Items',
+      'add_new_item' => 'Add new Portfolio Item',
+      'edit_item' => 'Edit Portfolio Item',
+      'new_item' => 'New Portfolio Item',
+      'view_item' => 'View Portfolio Item',
+      'search_item' => 'Search Portfolio',
+      'not_found' => 'No Item Found',
+      'not_found_in_trash' => 'No Item Found In Trash',
+      'parent_item_colon' => 'Parent Item',
+    );
+    $args = array(
+      'labels' => $labels,
+      'rewrite' => true,
+    
+     
+      // Removes support for the "Add New" function ( use 'do_not_allow' instead of false for multisite set ups )
+      'map_meta_cap' => true, // Set to true for edit otion, Set to `false`, if users are not allowed to edit/delete existing posts
+      'hierarchical'        => false,
+      'public'              => true,
+      'show_ui'             => true,
+      // 'show_in_menu'        => true,
+      
+      // 'show_in_nav_menus'   => true,
+      // 'show_in_admin_bar'   => true,
+      'menu_position'       => 9,
+      // 'can_export'          => true,
+      'has_archive'         => true,
+      'exclude_from_search' => false,
+      'publicly_queryable'  => true,
+      'query_var'  => true,
+      'capability_type'     => 'post',
+      'show_in_rest' => true,
+      'rest_controller_class' => 'WP_REST_Posts_Controller',
+      
+      'supports' => array(
+        'title',
+        'editor',
+        'excerpt',
+        'thumbnail',
+        'revisions',
+        
+      ),
+      'taxonomies' => array('category', 'post_tag'),
+    );
+    
+     register_post_type('portfolio', $args);
+  }
+  
+  add_action('init', 'portfolio_custom_post_type' );
+
+
+  //**********************************************************/
+//custom meta box email field for custom post type portfolio 
+//***********************************************************/
+
+function add_email_meta_box( ){
+    add_meta_box( 'email_meta_box_id', 'Email', 'email_callback', 'portfolio' );
+    
+  }
+  
+  
+  
+  //This callback function will print the HTML markup into the meta box
+  function email_callback( $post ){
+    
+    // we should consider keeping things safe. We need to call the function wp_nonce_field
+    wp_nonce_field('save_email_data', 'email_nonce' );
+  
+    $value = get_post_meta($post->ID, 'email_key', true);
+    echo'<label for="email_field">Skill </label>';
+    echo'<input type="text" id="email_field" name="email_field" value="'.esc_attr($value).'" size="25" />';
+  
+    
+    
+  }
+  
+  add_action( 'add_meta_boxes', 'add_email_meta_box' );
+  
+  function save_email_data($post_id){
+   if (! isset($_POST['email_nonce'])){
+     return;
+   }
+  
+   if(! wp_verify_nonce($_POST['email_nonce'], 'save_email_data')){
+     return;
+   }
+  
+   if(defined('DOING_AUTOSAVE') && DOING_AUTOSAVE){
+     return;
+   }
+  
+   if(! current_user_can('edit_post', $post_id)){
+     return;
+   }
+  
+   if(! isset($_POST['email_field'])){
+     return;
+   }
+  
+   $my_data = sanitize_text_field($_POST['email_field']);
+  
+   update_post_meta($post_id,'email_key', $my_data);
+   
+  
+  }
+  
+  add_action('save_post', 'save_email_data' );
+
+
+
+//*********************************************/
+//for making column in portfolio admin
+//*********************************************/
+
+//*********************************************/
+//for making column in skill admin
+//*********************************************/
+
+add_filter('manage_portfolio_posts_columns', 'email_column_callback'); // here posttype should declare obvious = 'manage_yourposttype_posts_columns'
+add_action('manage_portfolio_posts_custom_column', 'email_custom_column_callback',10,2); // here pretty much same only columns would be column and custom will be added as prefix before post
+
+function email_column_callback($columns){
+//  unset($columns['tags']);
+  $newColumns = array();
+  $newColumns['title'] = 'User Title';
+  $newColumns['bio'] = 'Bio';
+  $newColumns['email'] = 'Email';
+  $newColumns['feature_img'] = 'Feature Image';
+  return $newColumns;
+}
+
+function email_custom_column_callback($column, $post_id){
+
+    // Set thumbnail size
+add_image_size( 'portfolio-admin-featured-image', 100, 100, false );
+
+  switch($column){
+    case 'bio':
+        echo get_the_excerpt();
+  
+    case 'email':
+    $email = get_post_meta($post_id, 'email_key', true);
+    echo $email;
+        break;
+    case 'feature_img':
+        if( function_exists('the_post_thumbnail') )
+          echo the_post_thumbnail( 'portfolio-admin-featured-image' );
+        break;
+    
+  }
+}
