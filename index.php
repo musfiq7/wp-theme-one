@@ -51,6 +51,8 @@ if (have_posts()) {
 } else {
     echo '<p> no post to show</p>';
 }
+
+ wpex_pagination();
 ?>
 </div>
 <div class="sidebar">
